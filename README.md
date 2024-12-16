@@ -1,6 +1,6 @@
 --# TVX HUB V1
 
---# TVX-MENU-v1.2
+--# TVX-MENU-v1.3
 
 local LibraryURL = 'https://raw.githubusercontent.com/drillygzzly/Roblox-UI-Libs/main/Yun%20V2%20Lib/Yun%20V2%20Lib%20Source.lua'
 loadstring(game:HttpGet(LibraryURL))()
@@ -37,6 +37,8 @@ local AimbotSettings = {
     TeamCheckEnabled = false, -- Adicionando Team Check
     AimLockKey = Enum.KeyCode.X -- Padrão para X
 }
+
+local bodyParts = {"Head", "UpperTorso", "LowerTorso"}
 
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Visible = false
@@ -160,10 +162,15 @@ game:GetService("RunService").RenderStepped:Connect(function()
 
             for _, Player in ipairs(Players:GetPlayers()) do
                 if Player ~= LocalPlayer and Player.Character and Player.Character:FindFirstChild("Head") and Player.Character.Humanoid.Health > 0 and (not AimbotSettings.TeamCheckEnabled or not isTeammate(Player)) then
-                    local Distance = (Player.Character.Head.Position - LocalPlayer.Character.Head.Position).magnitude
-                    if Distance < ShortestDistance and IsPlayerInFOV(Player) then
-                        ShortestDistance = Distance
-                        ClosestPlayer = Player
+                    for _, part in ipairs(bodyParts) do
+                        if AimbotSettings[part .. "Enabled"] and Player.Character:FindFirstChild(part) then
+                            local Distance = (Player.Character[part].Position - game.Players.LocalPlayer.Character.Head.Position).magnitude
+                            if Distance < ShortestDistance and IsPlayerInFOV(Player) then
+                                ShortestDistance = Distance
+                                ClosestPlayer = Player
+                                AimbotSettings.AimPart = part -- Armazenar a parte alvo
+                            end
+                        end
                     end
                 end
             end
@@ -179,13 +186,16 @@ game:GetService("RunService").RenderStepped:Connect(function()
             AimbotSettings.AimPlayer = nil
         end
 
-        if AimbotSettings.AimPlayer and AimbotSettings.AimPlayer.Character and AimbotSettings.AimPlayer.Character:FindFirstChild("Head") then
-            local TargetPosition = AimbotSettings.AimPlayer.Character.Head.Position
-            if AimbotSettings.PredictionEnabled then
-                TargetPosition = TargetPosition + (AimbotSettings.AimPlayer.Character.Head.Velocity * AimbotSettings.Prediction)
+        if AimbotSettings.AimPlayer and AimbotSettings.AimPlayer.Character then
+            local part = AimbotSettings.AimPart or "Head" -- Usar a parte do corpo armazenada ou a cabeça como padrão
+            if AimbotSettings.AimPlayer.Character:FindFirstChild(part) then
+                local TargetPosition = AimbotSettings.AimPlayer.Character[part].Position
+                if AimbotSettings.PredictionEnabled then
+                    TargetPosition = TargetPosition + (AimbotSettings.AimPlayer.Character[part].Velocity * AimbotSettings.Prediction)
+                end
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, TargetPosition)
+                print("Aiming at player:", AimbotSettings.AimPlayer.Name, "Part:", part)
             end
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, TargetPosition) -- Travar a câmera no inimigo com previsão
-            print("Aiming at player: " .. AimbotSettings.AimPlayer.Name)
         end
     end
 
@@ -354,3 +364,29 @@ end)
 game:GetService("Players").PlayerAdded:Connect(function(player)
     cleanESP()
 end)
+
+-- Função para criar checkboxes com partes do corpo
+local function createBodyPartCheckboxes(section)
+    for _, part in ipairs(bodyParts) do
+        section:Toggle{
+            name = part,
+            def = false,
+            callback = function(value)
+                AimbotSettings[part .. "Enabled"] = value
+                print(part .. " targeting enabled: " .. tostring(value))
+            end
+        }
+        print("Checkbox added for body part:", part)
+    end
+end
+
+-- Criando uma nova aba para configurações de partes do corpo
+local BodyPartsTab = Window:Tab("Body Parts")
+print("Body Parts tab created")
+
+-- Criando uma nova seção dentro da aba Body Parts
+local BodyPartsSec = BodyPartsTab:Section{name = "Select Body Parts", column = 1}
+print("Body Parts section created")
+
+-- Adicionando checkboxes para as partes do corpo
+createBodyPartCheckboxes(BodyPartsSec)
