@@ -356,7 +356,7 @@ end)
 Tabs.Main:AddSlider("SpeedSlider", {
     Title = "Aimbot Speed",
     Min = 1,
-    Max = 20, 
+    Max = 100, 
     Default = AimbotSettings.Speed,
     Rounding = 1
 }):OnChanged(function(val)
